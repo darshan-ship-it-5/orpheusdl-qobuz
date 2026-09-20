@@ -88,6 +88,7 @@ class ModuleInterface:
             upc = album_data.get('upc'),
             label = album_data.get('label').get('name') if album_data.get('label') else None,
             copyright = album_data.get('copyright'),
+            description = album_data.get('description'),
             genres = [album_data['genre']['name']],
         )
 
@@ -167,7 +168,6 @@ class ModuleInterface:
             quality = self.quality_format.format(**quality_tags) if self.quality_format != '' else None,
             description = album_data.get('description'),
             cover_url = album_data['image']['large'].split('_')[0] + '_org.jpg',
-            all_track_cover_jpg_url = album_data['image']['large'],
             upc = album_data.get('upc'),
             duration = album_data.get('duration'),
             booklet_url = booklet_url,
@@ -215,11 +215,20 @@ class ModuleInterface:
                 contributor_name = credit.split(', ')[0]
 
                 for role in contributor_role:
-                    # Check if the dict contains no list, create one
-                    if role not in credits_dict:
-                        credits_dict[role] = []
-                    # Now add the name to the type list
-                    credits_dict[role].append(contributor_name)
+                    # Keep combined Qobuz roles such as "Composer Lyricist"
+                    # as separate metadata fields.
+                    normalized_role = role.strip().lower()
+                    separate_roles = (
+                        ['Composer', 'Lyricist']
+                        if 'composer' in normalized_role and 'lyricist' in normalized_role
+                        else [role]
+                    )
+
+                    for separate_role in separate_roles:
+                        if separate_role not in credits_dict:
+                            credits_dict[separate_role] = []
+                        if contributor_name not in credits_dict[separate_role]:
+                            credits_dict[separate_role].append(contributor_name)
 
         # Convert the dictionary back to a list of CreditsInfo
         return [CreditsInfo(k, v) for k, v in credits_dict.items()]
@@ -267,3 +276,4 @@ class ModuleInterface:
             items.append(item)
 
         return items
+            
